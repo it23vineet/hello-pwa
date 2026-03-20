@@ -1,21 +1,49 @@
-const CACHE_NAME = 'hello-pwa-v1';
-const ASSETS = [
-'/',
-'/index.html',
+const CACHE_NAME = 'hello-pwa-v2';
 
-'[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)'
+const ASSETS = [
+  './',
+  './index.html',
+  './manifest.json',
+  './offline.html'
 ];
-// Install event: Cache essential files
+
+// Install: cache core assets
 self.addEventListener('install', (event) => {
-event.waitUntil(
-caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-);
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS);
+    })
+  );
+  self.skipWaiting();
 });
-// Fetch event: Serve from cache if offline
+
+// Activate: clean old caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+// Fetch: network first, fallback to cache, then offline page
 self.addEventListener('fetch', (event) => {
-event.respondWith(
-caches.match(event.request).then((response) => {
-return response || fetch(event.request);
-})
-);
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((res) => {
+          return res || caches.match('./offline.html');
+        });
+      })
+  );
 });
